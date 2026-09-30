@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.BookApp" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">#7B2FF7</item>
+        <item name="android:navigationBarColor">#1E2A5A</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+    </style>
+</resources>
