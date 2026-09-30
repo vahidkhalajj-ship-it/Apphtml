@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://appassets.androidplatform.net; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src https://cdn.jsdelivr.net data: 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="theme-color" content="#7B2FF7">
+<title>ساخت اپلیکیشن حرفه‌ای اندروید WebView</title>
+<style>
+:root {
+  --primary: #7B2FF7;
+  --primary-dark: #5a1fd6;
+  --primary-light: #a56bff;
+  --secondary: #1E2A5A;
+  --bg: #f8f9fc;
+  --card-bg: #ffffff;
+  --text: #1a1a2e;
+  --text-light: #444;
+  --text-muted: #888;
+  --border: #e2e6f0;
+  --code-bg: #1e1e2e;
+  --code-text: #e0e0f0;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.1);
+  --font: 'Vazirmatn', 'Segoe UI', Tahoma, 'Iranian Sans', 'IRANSans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Fira Code', 'Consolas', 'Monaco', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn%5Bwght%5D.woff2') format('woff2');
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.9;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--primary-light); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ---------- HEADER ---------- */
+.book-header {
+  background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+  color: #fff;
+  padding: 50px 20px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.book-header h1 {
+  font-size: clamp(1.4rem, 4vw, 2.4rem);
+  font-weight: 900;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+.book-header .subtitle {
+  font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+  opacity: 0.92;
+  max-width: 700px;
+  margin: 0 auto 20px;
+  line-height: 1.8;
+}
+.book-header .meta { font-size: 0.85rem; opacity: 0.85; }
+.book-header .meta a { color: #fff; text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,0.4); }
+
+/* ---------- PROGRESS BAR ---------- */
+.progress-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  width: 0%;
+  z-index: 1003;
+  transition: width 0.1s linear;
+}
+
+/* ---------- MENU TOGGLE ---------- */
+.menu-toggle {
+  position: fixed;
+  top: 16px; right: 16px;
+  z-index: 1002;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  transition: all 0.25s ease;
+}
+.menu-toggle:hover { background: var(--primary-dark); transform: scale(1.08); }
+.menu-toggle .icon-close { display: none; }
+.menu-toggle.open .icon-open { display: none; }
+.menu-toggle.open .icon-close { display: block; }
+
+/* ---------- SIDEBAR (TOC) ---------- */
+.sidebar {
+  position: fixed;
+  top: 0; right: 0;
+  width: 320px;
+  max-width: 85vw;
+  height: 100vh;
+  background: var(--card-bg);
+  box-shadow: -4px 0 30px rgba(0,0,0,0.15);
+  z-index: 1001;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar.open { transform: translateX(0); }
+
+.sidebar-header {
+  padding: 22px 20px;
+  background: linear-gradient(135deg, var(--secondary), var(--primary));
+  color: #fff;
+  flex-shrink: 0;
+}
+.sidebar-header h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
+.sidebar-header p { font-size: 0.8rem; opacity: 0.85; }
+
+.sidebar-search { padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sidebar-search input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  background: var(--bg);
+  transition: all 0.25s ease;
+  direction: rtl;
+}
+.sidebar-search input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(123, 47, 247, 0.1);
+}
+
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 10px 0; scroll-behavior: smooth; }
+.sidebar-nav a {
+  display: block;
+  padding: 11px 20px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-right: 3px solid transparent;
+  transition: all 0.25s ease;
+  line-height: 1.6;
+}
+.sidebar-nav a:hover {
+  background: rgba(123, 47, 247, 0.06);
+  border-right-color: var(--primary-light);
+  color: var(--primary);
+}
+.sidebar-nav a.active {
+  background: rgba(123, 47, 247, 0.1);
+  border-right-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}
+.sidebar-nav .no-results { padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem; display: none; }
+
+/* ---------- OVERLAY ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+}
+.overlay.open { opacity: 1; visibility: visible; }
+
+/* ---------- MAIN CONTENT ---------- */
+.main-content { max-width: 900px; margin: 0 auto; padding: 30px 20px 80px; }
+
+.section { margin-bottom: 50px; scroll-margin-top: 20px; }
+.section h2 {
+  font-size: clamp(1.3rem, 3.5vw, 1.8rem);
+  font-weight: 900;
+  color: var(--secondary);
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 3px solid var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 1.5;
+}
+.section h2 .num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(123, 47, 247, 0.3);
+}
+.section h3 {
+  font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+  font-weight: 800;
+  color: var(--primary-dark);
+  margin: 28px 0 14px;
+  padding-right: 14px;
+  border-right: 4px solid var(--primary-light);
+  line-height: 1.6;
+}
+.section p { margin-bottom: 14px; color: var(--text-light); text-align: justify; line-height: 2; }
+.section ul, .section ol { margin: 14px 0 18px; padding-right: 26px; color: var(--text-light); }
+.section li { margin-bottom: 10px; line-height: 1.95; }
+.section li::marker { color: var(--primary); font-weight: 700; }
+.section strong { color: var(--text); font-weight: 700; }
+
+/* ---------- CALLOUTS ---------- */
+.callout {
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin: 18px 0;
+  border-right: 5px solid;
+  line-height: 1.9;
+}
+.callout .callout-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.callout p, .callout li { color: var(--text-light); font-size: 0.92rem; }
+.callout.best { background: linear-gradient(135deg, #ecfdf5, #f0fdf4); border-color: var(--success); }
+.callout.best .callout-title { color: #047857; }
+.callout.warning { background: linear-gradient(135deg, #fffbeb, #fefce8); border-color: var(--warning); }
+.callout.warning .callout-title { color: #b45309; }
+.callout.danger { background: linear-gradient(135deg, #fef2f2, #fff1f2); border-color: var(--danger); }
+.callout.danger .callout-title { color: #b91c1c; }
+.callout.info { background: linear-gradient(135deg, #eff6ff, #f0f9ff); border-color: var(--info); }
+.callout.info .callout-title { color: #1d4ed8; }
+.callout.case { background: linear-gradient(135deg, #faf5ff, #f5f3ff); border-color: var(--primary); }
+.callout.case .callout-title { color: var(--primary-dark); }
+
+/* ---------- PROMPT BOX ---------- */
+.prompt-box {
+  background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+  border: 2px solid var(--primary-light);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin: 26px 0 22px;
+  position: relative;
+}
+.prompt-box::before {
+  content: '🎯 پرامپت آماده';
+  position: absolute;
+  top: -14px; right: 18px;
+  background: var(--primary);
+  color: #fff;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(123, 47, 247, 0.3);
+}
+.prompt-box .prompt-title { font-weight: 800; color: var(--primary-dark); margin-bottom: 12px; font-size: 1rem; }
+.prompt-box .prompt-desc { font-size: 0.88rem; color: var(--text-light); margin-bottom: 10px; }
+
+/* ---------- CODE BLOCK ---------- */
+.code-block {
+  background: var(--code-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 16px 0;
+  direction: ltr;
+  text-align: left;
+  box-shadow: var(--shadow-lg);
+}
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #2a2a3e;
+  border-bottom: 1px solid #3a3a50;
+}
+.code-header .lang {
+  color: #a0a0c0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+.copy-btn {
+  background: rgba(123, 47, 247, 0.2);
+  color: #d0b0ff;
+  border: 1px solid rgba(123, 47, 247, 0.4);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: 600;
+}
+.copy-btn:hover { background: rgba(123, 47, 247, 0.4); color: #fff; }
+.copy-btn.copied { background: var(--success); color: #fff; border-color: var(--success); }
+.code-block pre {
+  padding: 18px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--code-text);
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* ---------- TABLES ---------- */
+.table-wrapper {
+  overflow-x: auto;
+  margin: 18px 0;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+table { width: 100%; border-collapse: collapse; background: var(--card-bg); min-width: 500px; font-size: 0.88rem; }
+thead { background: linear-gradient(135deg, var(--secondary), var(--primary)); color: #fff; }
+th { padding: 13px 14px; text-align: right; font-weight: 800; font-size: 0.85rem; white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text-light); line-height: 1.8; vertical-align: top; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) { background: rgba(123, 47, 247, 0.025); }
+tbody tr:hover { background: rgba(123, 47, 247, 0.06); }
+
+/* ---------- TROUBLESHOOT ---------- */
+.trouble-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 20px 0;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.trouble-card .trouble-header {
+  background: linear-gradient(135deg, #fef2f2, #fff1f2);
+  padding: 14px 18px;
+  border-bottom: 1px solid #fecaca;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  color: #b91c1c;
+  font-size: 0.95rem;
+}
+.trouble-card .trouble-body { padding: 16px 18px; }
+.trouble-item { margin-bottom: 14px; }
+.trouble-item:last-child { margin-bottom: 0; }
+.trouble-item .label {
+  font-weight: 700;
+  color: var(--secondary);
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trouble-item .label::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.trouble-item p, .trouble-item ul { font-size: 0.87rem; color: var(--text-light); margin: 0; padding-right: 14px; }
+
+/* ---------- CHECKLIST ---------- */
+.checklist {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin: 18px 0;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.checklist .checklist-title {
+  font-weight: 800;
+  color: var(--secondary);
+  margin-bottom: 14px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.9rem;
+  color: var(--text-light);
+  line-height: 1.8;
+}
+.check-item:last-child { border-bottom: none; }
+.check-item .box {
+  width: 18px; height: 18px;
+  border: 2px solid var(--primary-light);
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.check-item .box:hover { border-color: var(--primary); background: rgba(123, 47, 247, 0.05); }
+.check-item .box.checked { background: var(--primary); border-color: var(--primary); }
+.check-item .box.checked::after { content: '✓'; color: #fff; font-size: 0.75rem; font-weight: 900; }
+.check-item .box.checked + span { text-decoration: line-through; opacity: 0.6; }
+
+/* ---------- FAQ ---------- */
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--card-bg);
+}
+.faq-q {
+  padding: 14px 18px;
+  font-weight: 700;
+  color: var(--secondary);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  user-select: none;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+.faq-q::after {
+  content: '+';
+  font-size: 1.4rem;
+  color: var(--primary);
+  font-weight: 400;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+.faq-item.open .faq-q::after { transform: rotate(45deg); }
+.faq-a {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, padding 0.35s ease;
+  padding: 0 18px;
+  color: var(--text-light);
+  font-size: 0.88rem;
+  line-height: 1.95;
+}
+.faq-item.open .faq-a { max-height: 600px; padding: 14px 18px; border-top: 1px solid var(--border); }
+
+/* ---------- BACK TO TOP ---------- */
+.back-top {
+  position: fixed;
+  bottom: 24px; left: 24px;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  z-index: 999;
+}
+.back-top.show { opacity: 1; visibility: visible; }
+.back-top:hover { background: var(--primary-dark); transform: translateY(-3px); }
+
+/* ---------- FOOTER ---------- */
+.book-footer {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+  line-height: 2;
+}
+.book-footer strong { color: var(--primary); }
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 768px) {
+  body { font-size: 15px; }
+  .main-content { padding: 20px 14px 70px; }
+  .section h2 { font-size: 1.25rem; gap: 8px; }
+  .section h2 .num { min-width: 36px; height: 36px; font-size: 0.9rem; }
+  .section h3 { font-size: 1.02rem; }
+  .callout { padding: 15px 16px; }
+  .prompt-box { padding: 16px 16px; }
+  .code-block pre { padding: 14px; font-size: 0.78rem; }
+  .sidebar { width: 300px; }
+  .menu-toggle { top: 12px; right: 12px; width: 44px; height: 44px; }
+  .back-top { bottom: 18px; left: 18px; width: 42px; height: 42px; }
+  table { font-size: 0.82rem; }
+  th, td { padding: 10px 10px; }
+}
+
+@media (max-width: 400px) {
+  body { font-size: 14px; }
+  .main-content { padding: 16px 10px 60px; }
+  .book-header { padding: 36px 14px 30px; }
+  .code-block pre { font-size: 0.72rem; padding: 12px; }
+}
+
+@media print {
+  .menu-toggle, .sidebar, .overlay, .back-top, .progress-bar, .copy-btn { display: none !important; }
+  body { background: #fff; font-size: 12pt; }
+  .main-content { max-width: 100%; padding: 0; }
+  .card, .callout, .prompt-box, .code-block, .trouble-card, .checklist, .faq-item {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    page-break-inside: avoid;
+  }
+  .code-block { background: #f5f5f5; }
+  .code-block pre { color: #000; }
+}
+
+/* ===== PROTECTION + COPYRIGHT ===== */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;padding-bottom:38px}
+.prompt-box pre,.prompt-box pre *,input{-webkit-user-select:text;user-select:text}
+img{-webkit-user-drag:none;pointer-events:none}
+.legal-bar{position:fixed;bottom:0;left:0;right:0;z-index:999;background:rgba(30,42,90,.96);color:#fff;text-align:center;font-size:.72rem;padding:8px 10px calc(8px + env(safe-area-inset-bottom));line-height:1.5}
+.sec-copy{margin-top:22px;padding-top:10px;border-top:1px dashed var(--border);text-align:center;font-size:.75rem;color:var(--text-muted)}
+#backTop{bottom:56px!important}
+@media print{body{display:none!important}}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<button class="menu-toggle" id="menuToggle" aria-label="فهرست مطالب">
+  <span class="icon-open">☰</span>
+  <span class="icon-close">✕</span>
+</button>
+
+<div class="overlay" id="overlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>📚 فهرست مطالب</h2>
+    <p>ساخت اپلیکیشن حرفه‌ای اندروید WebView</p>
+  </div>
+  <div class="sidebar-search">
+    <input type="text" id="searchInput" placeholder="🔍 جست‌وجو در فهرست..." autocomplete="off">
+  </div>
+  <nav class="sidebar-nav" id="sidebarNav">
+    <a href="#ch0">فصل ۰ — چگونه از این کتاب استفاده کنیم</a>
+    <a href="#ch0-5">فصل ۰.۵ — فرم اطلاعات پروژه</a>
+    <a href="#ch1">فصل ۱ — مفاهیم پایه: وب‌سایت، PWA، WebView، TWA</a>
+    <a href="#ch2">فصل ۲ — از الزامات تا مشخصات فنی</a>
+    <a href="#ch3">فصل ۳ — ابزارها از صفر</a>
+    <a href="#ch4">فصل ۴ — ساختار پروژه</a>
+    <a href="#ch5">فصل ۵ — AndroidManifest.xml از صفر</a>
+    <a href="#ch6">فصل ۶ — Permissions</a>
+    <a href="#ch7">فصل ۷ — هسته WebView</a>
+    <a href="#ch7-5">فصل ۷.۵ — ویژگی‌های پیشرفته WebView</a>
+    <a href="#ch8">فصل ۸ — Splash Screen و آیکون</a>
+    <a href="#ch9">فصل ۹ — مدیریت حالت آفلاین</a>
+    <a href="#ch10">فصل ۱۰ — Firebase و FCM</a>
+    <a href="#ch11">فصل ۱۱ — Git و GitHub</a>
+    <a href="#ch12">فصل ۱۲ — GitHub Actions و CI/CD</a>
+    <a href="#ch13">فصل ۱۳ — Keystore و بیلد Release</a>
+    <a href="#ch14">فصل ۱۴ — تست پیش از انتشار</a>
+    <a href="#ch15">فصل ۱۵ — انتشار در بازار اندروید</a>
+    <a href="#ch16">فصل ۱۶ — PWA و TWA به‌عنوان جایگزین</a>
+    <a href="#ch17">فصل ۱۷ — روش‌شناسی توسعه با AI</a>
+    <a href="#ch18">فصل ۱۸ — کتابخانه کامل پرامپت‌ها</a>
+    <a href="#ch19">فصل ۱۹ — راهنمای جامع رفع اشکال</a>
+    <div class="no-results" id="noResults">نتیجه‌ای یافت نشد</div>
+  </nav>
+</aside>
+
+<header class="book-header">
+  <h1>ساخت اپلیکیشن حرفه‌ای اندروید WebView</h1>
+  <p class="subtitle">برای هر وب‌سایتی، با کمک هوش مصنوعی — یک دوره کامل عملی همراه با کتابخانه ۴۰ پرامپت آماده، چک‌لیست‌ها و راهنمای رفع اشکال</p>
+  <p class="meta">نویسنده: <strong>وحید خلج</strong> · <a href="https://Promptexa.ir" target="_blank">Promptexa.ir</a> · نسخه ۱.۰.۰</p>
+</header>
+
+<main class="main-content">
+
+<!-- ============ فصل ۰ ============ -->
+<section class="section" id="ch0">
+  <h2><span class="num">۰</span> چگونه از این کتاب استفاده کنیم</h2>
+  <p>این کتاب یک روش کامل و تکرارپذیر آموزش می‌دهد: «چطور برای هر وب‌سایتی یک اپلیکیشن حرفه‌ای اندروید از نوع WebView بسازیم، با کمک هوش مصنوعی به‌عنوان دستیار برنامه‌نویسی.» موضوع اصلی این کتاب توسعه اپلیکیشن Android WebView است — نه یک ابزار PWA و نه معرفی یک وب‌سایت خاص.</p>
+
+  <div class="callout case">
+    <div class="callout-title">📌 مطالعه موردی — CASE STUDY</div>
+    <p>این پروژه واقعی، فقط یک نمونه اجراشده است تا مفاهیم را با مثال واقعی نشان دهد — نه الگوی اجباری.</p>
+  </div>
+  <div class="callout best">
+    <div class="callout-title">✅ روش قابل بازتولید — REUSABLE METHOD</div>
+    <p>هرجا این برچسب را دیدید، یعنی این بخش دقیقاً همان چیزی است که شما باید برای پروژه خودتان (با هر وب‌سایتی) انجام دهید.</p>
+  </div>
+  <div class="callout info">
+    <div class="callout-title">💡 بهترین شیوه — BEST PRACTICE</div>
+    <p>این برچسب یک توصیه حرفه‌ای است که لزوماً در پروژه نمونه اصلی پیاده‌سازی نشده، اما رعایتش برای یک محصول تجاری توصیه می‌شود.</p>
+  </div>
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار — WARNING</div>
+    <p>این برچسب یک نکته حیاتی یا خطر رایج را نشان می‌دهد که نادیده‌گرفتنش می‌تواند پروژه را خراب کند.</p>
+  </div>
+
+  <h3>سیستم Placeholder</h3>
+  <p>در سراسر این کتاب، هرجا متنی داخل کروشه [ ] دیدید، به این معناست که باید آن را با اطلاعات واقعی پروژه خودتان جایگزین کنید.</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>جایگاه</th><th>معنی</th><th>مثال ساختگی</th></tr></thead>
+      <tbody>
+        <tr><td>[PROJECT_NAME]</td><td>نام داخلی پروژه</td><td>MyShopApp</td></tr>
+        <tr><td>[APP_NAME]</td><td>نامی که کاربر روی گوشی می‌بیند</td><td>کالا شاپ</td></tr>
+        <tr><td>[COMPANY_NAME]</td><td>نام برند یا شرکت</td><td>شرکت کالای نمونه</td></tr>
+        <tr><td>[WEBSITE_URL]</td><td>آدرس اصلی سایت</td><td>https://example-shop.com</td></tr>
+        <tr><td>[MAIN_DOMAIN]</td><td>دامنه اصلی بدون مسیر</td><td>example-shop.com</td></tr>
+        <tr><td>[APPLICATION_ID]</td><td>شناسه یکتای اپ</td><td>com.exampleshop.app</td></tr>
+        <tr><td>[PRIMARY_COLOR]</td><td>رنگ اصلی برند</td><td>#1E2A5A</td></tr>
+        <tr><td>[SECONDARY_COLOR]</td><td>رنگ ثانویه برند</td><td>#7B2FF7</td></tr>
+        <tr><td>[LOGO_FILE]</td><td>فایل لوگوی با کیفیت بالا</td><td>logo.png (512×512)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">Mermaid</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+    <pre>flowchart TD
+    A[ وب‌سایت شما ] --&gt; B[ الزامات و مشخصات فنی ]
+    B --&gt; C[ تصمیم معماری : WebView/TWA/PWA]
+    C --&gt; D[ پروژه Android Studio]
+    D --&gt; E[ هسته WebView + ناوبری ]
+    E --&gt; F[Splash و آیکون ]
+    F --&gt; G[ مدیریت آفلاین ]
+    G --&gt; H[Manifest و Permissions]
+    H --&gt; I[Firebase و نوتیفیکیشن ]
+    I --&gt; J[GitHub و GitHub Actions]
+    J --&gt; K[ بیلد Release: APK/AAB]
+    K --&gt; L[ تست روی دستگاه واقعی ]
+    L --&gt; M[ انتشار در مارکت ]</pre>
+  </div>
+</section>
+
+<!-- ============ فصل ۰.۵ ============ -->
+<section class="section" id="ch0-5">
+  <h2><span class="num">۰.۵</span> فرم اطلاعات پروژه</h2>
+  <p>قبل از شروع فصل ۱، این فرم را برای پروژه خودتان کامل کنید. این فرم تمام مقادیری را که در طول کتاب به‌جای Placeholder استفاده خواهید کرد، در یک‌جا جمع می‌کند.</p>
+  <ul>
+    <li><strong>نام پروژه (Project Name):</strong> نام داخلی/فنی پروژه که در مستندات و مخزن استفاده می‌شود.</li>
+    <li><strong>نام اپلیکیشن (App Name):</strong> نامی که زیر آیکون روی گوشی کاربر نمایش داده می‌شود.</li>
+    <li><strong>نام شرکت/برند (Company / Brand Name):</strong> برای صفحه انتشار در مارکت و اطلاعات حقوقی.</li>
+    <li><strong>آدرس وب‌سایت (Website URL):</strong> آدرس کامل سایتی که در WebView بارگذاری می‌شود.</li>
+    <li><strong>دامنه اصلی (Main Domain):</strong> برای تشخیص لینک داخلی از خارجی در shouldOverrideUrlLoading.</li>
+    <li><strong>نام پکیج (Package Name / Application ID):</strong> شناسه یکتای جهانی اپ؛ باید در Firebase و Gradle یکسان باشد.</li>
+    <li><strong>Namespace:</strong> فضای نام کاتلین که در build.gradle تعریف می‌شود؛ معمولاً برابر applicationId.</li>
+    <li><strong>رنگ اصلی برند (Primary Brand Color):</strong> برای تم، اسپلش و نوار ناوبری.</li>
+    <li><strong>رنگ ثانویه برند (Secondary Brand Color):</strong> برای دکمه‌ها و لهجه‌های رنگی.</li>
+    <li><strong>فایل لوگو (Logo File):</strong> تصویر مبنا برای تولید آیکون اپ و لوگوی اسپلش.</li>
+    <li><strong>آدرس صفحه اصلی (Home URL):</strong> اولین تب ناوبری پایین.</li>
+    <li><strong>آدرس دسته‌بندی‌ها (Categories URL):</strong> تب دوم ناوبری (در صورت وجود).</li>
+    <li><strong>آدرس سبد خرید (Cart URL):</strong> برای اپ‌های فروشگاهی؛ در غیر این صورت حذف شود.</li>
+    <li><strong>آدرس حساب کاربری (Account URL):</strong> برای مدیریت پروفایل و ورود کاربر.</li>
+    <li><strong>آدرس ورود (Login URL):</strong> برای بررسی صحت پایداری نشست (Cookie).</li>
+    <li><strong>سیاست حریم خصوصی (Privacy Policy URL):</strong> الزامی برای اکثر مارکت‌ها.</li>
+    <li><strong>شرایط استفاده (Terms of Service URL):</strong> توصیه‌شده برای اپ‌های تجاری.</li>
+    <li><strong>سرویس‌دهنده نوتیفیکیشن (Push Notification Provider):</strong> مثلاً Webpushr، OneSignal یا سرویس اختصاصی.</li>
+    <li><strong>نام پروژه فایربیس (Firebase Project Name):</strong> نام نمایشی در Firebase Console.</li>
+    <li><strong>شناسه پروژه فایربیس (Firebase Project ID):</strong> برای اتصال google-services.json.</li>
+    <li><strong>مخزن گیت‌هاب (GitHub Repository):</strong> مسیر owner/repo برای CI/CD.</li>
+    <li><strong>شاخه اصلی (Main Branch):</strong> معمولاً main؛ برای تنظیم Workflow.</li>
+    <li><strong>نسخه هدف اندروید (Target Android Version):</strong> targetSdk — آخرین نسخه پایدار توصیه می‌شود.</li>
+    <li><strong>حداقل نسخه اندروید (Minimum Android Version):</strong> minSdk — بسته به بازار هدف کاربران.</li>
+    <li><strong>بازار هدف (Target Market):</strong> مثلاً Google Play، Cafe Bazaar یا هر دو.</li>
+    <li><strong>توضیحات اپلیکیشن (Application Description):</strong> متن معرفی برای صفحه انتشار در مارکت.</li>
+  </ul>
+
+  <div class="callout best">
+    <div class="callout-title">✅ بهترین شیوه</div>
+    <p>این فرم را به‌جای پرکردن ذهنی، در یک فایل جداگانه (مثلاً project-info.md) در همان مخزن گیت‌هاب پروژه ذخیره کنید.</p>
+  </div>
+</section>
+
+<!-- ============ فصل ۱ ============ -->
+<section class="section" id="ch1">
+  <h2><span class="num">۱</span> مفاهیم پایه: وب‌سایت، PWA، WebView، TWA</h2>
+  <p>موضوع اصلی این کتاب «اپلیکیشن اندروید از نوع WebView» است. اما چون این مفهوم اغلب با PWA و TWA اشتباه گرفته می‌شود، لازم است پیش از هر چیز چهار مفهوم را دقیق از هم جدا کنیم.</p>
+
+  <h3>۱. وب‌سایت (Website)</h3>
+  <p>مجموعه‌ای از صفحات HTML/CSS/JavaScript است که از طریق مرورگر و با آدرس اینترنتی در دسترس است. هیچ نصبی روی گوشی ندارد و هر بار باید در مرورگر باز شود.</p>
+
+  <h3>۲. PWA (Progressive Web App)</h3>
+  <p>یک وب‌سایت است که با افزودن دو فایل — manifest.json و Service Worker — قابلیت‌های شبه‌اپلیکیشن پیدا می‌کند: افزودن آیکون به صفحه اصلی گوشی، کارکرد محدود آفلاین، و در برخی مرورگرها نوتیفیکیشن پوش.</p>
+
+  <h3>۳. Android WebView</h3>
+  <p>یک کامپوننت بومی اندروید (android.webkit.WebView) است که درون یک اپلیکیشن کاتلین/جاوا واقعی جاسازی می‌شود و یک صفحه وب را داخل آن رندر می‌کند. برخلاف PWA، این یک اپلیکیشن بومی واقعی است که در Google Play/Cafe Bazaar نصب می‌شود، APK/AAB واقعی دارد، به API های بومی اندروید دسترسی کامل دارد.</p>
+
+  <div class="callout best">
+    <div class="callout-title">✅ روش قابل بازتولید — REUSABLE METHOD</div>
+    <p>موضوع محوری این کتاب همین مسیر است: ساخت یک اپلیکیشن بومی اندروید با یک WebView سفارشی در مرکز آن — نه یک PWA و نه ترکیب گمراه‌کننده «WebView PWA App».</p>
+  </div>
+
+  <h3>۴. TWA (Trusted Web Activity)</h3>
+  <p>یک روش میانه است: یک اپلیکیشن بومی اندروید بسیار سبک که به‌جای WebView سفارشی، از موتور Chrome نصب‌شده روی گوشی برای نمایش تمام‌صفحه سایت استفاده می‌کند. تقریباً هیچ کدنویسی UI بومی در آن وجود ندارد.</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>ویژگی</th><th>PWA</th><th>TWA</th><th>WebView سفارشی</th></tr></thead>
+      <tbody>
+        <tr><td>نیاز به کد بومی اندروید</td><td>خیر</td><td>حداقلی</td><td>بله، کامل</td></tr>
+        <tr><td>کنترل روی UI بومی</td><td>ندارد</td><td>بسیار محدود</td><td>کنترل کامل</td></tr>
+        <tr><td>نوتیفیکیشن پوش بومی (FCM)</td><td>محدود/وابسته به مرورگر</td><td>دارد ولی محدود</td><td>کامل و سفارشی</td></tr>
+        <tr><td>نیاز به انتشار در مارکت</td><td>خیر (اختیاری)</td><td>بله</td><td>بله</td></tr>
+        <tr><td>پیچیدگی توسعه</td><td>کم</td><td>کم تا متوسط</td><td>متوسط تا بالا</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۱ — توضیح انتخاب معماری برای مشتری غیرفنی</div>
+    <p class="prompt-desc">تبدیل تصمیم فنی WebView/TWA/PWA به توضیحی ساده و قابل‌فهم برای کارفرما یا مشتری بدون پیش‌زمینه فنی.</p>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Explain, in simple non-technical language suitable for a business owner (not a developer), why a custom Android WebView app is the right choice for their [BUSINESS_TYPE] website instead of a PWA or a TWA. Their stated needs are: [LIST_CLIENT_NEEDS]. Use a short analogy, not technical jargon.</pre>
+    </div>
+  </div>
+
+  <div class="checklist">
+    <div class="checklist-title">✅ چک‌لیست: انتخاب معماری (فصل ۱)</div>
+    <div class="check-item"><span class="box" onclick="toggleCheck(this)"></span><span>تفاوت وب‌سایت، PWA، TWA و WebView سفارشی برای من روشن است.</span></div>
+    <div class="check-item"><span class="box" onclick="toggleCheck(this)"></span><span>نیازهای پروژه من (ناوبری بومی، آفلاین سفارشی، نوتیفیکیشن) مشخص شده‌اند.</span></div>
+    <div class="check-item"><span class="box" onclick="toggleCheck(this)"></span><span>بر اساس جدول تصمیم‌گیری، مسیر WebView سفارشی را انتخاب کرده‌ام.</span></div>
+  </div>
+</section>
+
+<!-- ============ فصل ۲ ============ -->
+<section class="section" id="ch2">
+  <h2><span class="num">۲</span> از الزامات پروژه تا مشخصات فنی</h2>
+  <p>قبل از باز کردن Android Studio، باید مشخص شود اپلیکیشن دقیقاً چه کاری باید بکند. این مرحله دو گام دارد: ابتدا «الزامات» به زبان ساده نوشته می‌شود، سپس این الزامات به یک «مشخصات فنی» دقیق و قابل اجرا تبدیل می‌شود.</p>
+
+  <h3>الزامات پروژه — سوالاتی که باید پاسخ دهید</h3>
+  <ul>
+    <li>کدام بخش‌های سایت باید در ناوبری پایین اپ باشند؟</li>
+    <li>آیا نشست ورود کاربر باید بین اجراهای مختلف اپ حفظ شود؟</li>
+    <li>آیا نوتیفیکیشن پوش لازم است؟ از چه سرویسی؟</li>
+    <li>رفتار دقیق دکمه Back در صفحه اصلی و صفحات داخلی چه باید باشد؟</li>
+    <li>آیا محدودیت خاصی روی حجم نهایی APK یا زمان بارگذاری اولیه وجود دارد؟</li>
+    <li>آیا نیاز به پشتیبانی از حالت آفلاین با پیام و دکمه تلاش مجدد وجود دارد؟</li>
+  </ul>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۲ — نوشتن الزامات و مشخصات فنی پروژه با AI</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>You are a senior Android architect. I want to build a native Android WebView wrapper app for my website [WEBSITE_URL].  Business requirements:
+- Single Activity, single optimized WebView (no separate backend, no local database, no unnecessary libraries).
+- Bottom navigation with these sections: [HOME_URL, CATEGORIES_URL, CART_URL, ACCOUNT_URL].
+- Custom splash screen: brand color background, centered logo, fade + scale animation, 1-2 seconds.
+- Custom offline screen with a retry button.
+- Custom exit-confirmation dialog on the back button (only on the home tab).
+- In-app handling of push notification taps (open a specific page inside the WebView, not the browser).
+- Minimum required permissions only.
+- Smallest possible release APK size.  Turn this into a complete technical specification: project structure, list of files to create, a requirement-to-implementation mapping table, and acceptance criteria.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۳ ============ -->
+<section class="section" id="ch3">
+  <h2><span class="num">۳</span> ابزارها از صفر: Android Studio، Kotlin، SDK، JDK، Gradle و AGP</h2>
+
+  <h3>Android Studio</h3>
+  <p>محیط توسعه رسمی گوگل برای اندروید؛ ویرایشگر کد، ابزار طراحی رابط، شبیه‌ساز و ابزارهای دیباگ را در یک برنامه ترکیب می‌کند.</p>
+
+  <h3>Kotlin</h3>
+  <p>زبان برنامه‌نویسی رسمی و توصیه‌شده گوگل برای اندروید؛ جایگزین مدرن‌تر جاوا با نحو کوتاه‌تر و ایمنی بیشتر در برابر Null.</p>
+
+  <h3>Android SDK</h3>
+  <p>مجموعه کتابخانه‌ها و ابزارهایی که برای کامپایل و اجرای کد روی اندروید لازم است؛ شامل نسخه‌های مختلف API اندروید.</p>
+
+  <h3>JDK (Java Development Kit)</h3>
+  <p>ابزار کامپایل کد جاوا/کاتلین به بایت‌کد قابل اجرا روی ماشین مجازی جاوا؛ Gradle و AGP به آن نیاز دارند.</p>
+
+  <h3>Gradle و Android Gradle Plugin (AGP)</h3>
+  <p>Gradle موتور بیلد پروژه است؛ AGP پلاگینی است که قوانین خاص اندروید (کامپایل منابع، تولید APK) را به Gradle اضافه می‌کند.</p>
+
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار</div>
+    <p>این جدول یک راهنمای کلی و مربوط به زمان نگارش این کتاب است، نه یک عدد ثابت و همیشگی. AGP معمولاً هر سال یک نسخه اصلی جدید منتشر می‌کند؛ همیشه پیش از شروع پروژه، صفحه رسمی «Android Gradle Plugin Release Notes» را بررسی کنید.</p>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت دیباگ ناسازگاری نسخه</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>I'm using Kotlin [X], AGP [Y], Gradle [Z] and getting a sync error after updating one of them. Are these versions compatible, and if not, what's the correct combination?</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۴ ============ -->
+<section class="section" id="ch4">
+  <h2><span class="num">۴</span> ساختار پروژه: Module، Namespace، Application ID و نسخه‌های SDK</h2>
+
+  <h3>Module</h3>
+  <p>یک واحد مستقل بیلد در پروژه اندروید (معمولاً پوشه app/). برای یک اپ WebView ساده، یک Module به نام app کافی است.</p>
+
+  <h3>Namespace</h3>
+  <p>فضای نام کاتلین/جاوا که کلاس‌های تولیدشده (مثل R و BuildConfig) در آن قرار می‌گیرند؛ در build.gradle ماژول تعریف می‌شود.</p>
+
+  <h3>Application ID / Package Name</h3>
+  <p>شناسه یکتای جهانی اپلیکیشن شما در گوگل‌پلی/بازار و در Firebase؛ پس از اولین انتشار عملاً غیرقابل تغییر است.</p>
+
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار</div>
+    <p>هرگز applicationId موقت «برای تست» انتخاب نکنید. تغییر آن بعد از انتشار یعنی از دست‌دادن تمام نصب‌ها، امتیازها و کاربران فعلی — چون از نگاه مارکت، این عملاً یک اپلیکیشن کاملاً جدید محسوب می‌شود.</p>
+  </div>
+
+  <h3>minSdk / targetSdk / compileSdk</h3>
+  <ul>
+    <li><strong>minSdk:</strong> پایین‌ترین نسخه اندرویدی که اپ روی آن نصب می‌شود.</li>
+    <li><strong>targetSdk:</strong> نسخه‌ای که اپ برای آن بهینه و تست شده است.</li>
+    <li><strong>compileSdk:</strong> نسخه SDK ای که با آن کد کامپایل می‌شود.</li>
+  </ul>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت دیباگ ناهماهنگی applicationId</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>My Gradle applicationId is [X] but my google-services.json package_name is [Y]. What's the correct fix?</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۵ ============ -->
+<section class="section" id="ch5">
+  <h2><span class="num">۵</span> AndroidManifest.xml از صفر</h2>
+  <p>AndroidManifest.xml مهم‌ترین فایل پیکربندی هر اپلیکیشن اندروید است. سیستم‌عامل پیش از نصب یا اجرای اپ، این فایل را می‌خواند تا بفهمد اپ از چه اجزایی تشکیل شده، چه مجوزهایی نیاز دارد، و کدام Activity باید هنگام باز شدن اپ اجرا شود.</p>
+
+  <h3>اجزای اصلی Manifest</h3>
+  <ul>
+    <li><strong>Application:</strong> تگ ریشه اصلی تنظیمات کلی اپ (آیکون، نام نمایشی، تم).</li>
+    <li><strong>Activity:</strong> هر صفحه قابل مشاهده اپ؛ Activity اصلی باید intent-filter با action=MAIN و category=LAUNCHER داشته باشد.</li>
+    <li><strong>Service:</strong> یک جزء بدون رابط کاربری که در پس‌زمینه کار می‌کند؛ مثل FirebaseMessagingService.</li>
+    <li><strong>Broadcast Receiver:</strong> جزئی که به رویدادهای سیستمی گوش می‌دهد.</li>
+    <li><strong>Intent Filter:</strong> مشخص می‌کند یک Activity/Service به چه نوع Intent هایی پاسخ می‌دهد.</li>
+  </ul>
+
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار — exported</div>
+    <p>از اندروید ۱۲ (API 31) به بعد، هر Activity/Service/Receiver که دارای intent-filter است، باید مقدار android:exported را صریحاً true یا false تعیین کند؛ در غیر این صورت بیلد با خطا متوقف می‌شود.</p>
+  </div>
+
+  <h3>نمونه کامل Manifest</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">XML</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+    <pre>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;manifest xmlns:android="http://schemas.android.com/apk/res/android"&gt;
+    &lt;uses-permission android:name="android.permission.INTERNET" /&gt;
+    &lt;uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /&gt;
+    &lt;uses-permission android:name="android.permission.POST_NOTIFICATIONS" /&gt;
+    &lt;application
+        android:name=".[PROJECT_NAME]Application"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.[PROJECT_NAME]"
+        android:usesCleartextTraffic="false"&gt;
+        &lt;activity
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.[PROJECT_NAME].Splash"&gt;
+            &lt;intent-filter&gt;
+                &lt;action android:name="android.intent.action.MAIN" /&gt;
+                &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+            &lt;/intent-filter&gt;
+        &lt;/activity&gt;
+        &lt;activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/Theme.[PROJECT_NAME]" /&gt;
+        &lt;service android:name=".MyFirebaseMessagingService" android:exported="false"&gt;
+            &lt;intent-filter&gt;
+                &lt;action android:name="com.google.firebase.MESSAGING_EVENT" /&gt;
+            &lt;/intent-filter&gt;
+        &lt;/service&gt;
+        &lt;meta-data android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" /&gt;
+    &lt;/application&gt;
+&lt;/manifest&gt;</pre>
+  </div>
+
+  <h3>launchMode: مقایسه کامل</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>launchMode</th><th>رفتار</th><th>مناسب برای</th></tr></thead>
+      <tbody>
+        <tr><td>standard</td><td>هر بار یک Instance جدید ساخته می‌شود</td><td>پیش‌فرض؛ اکثر Activity های ساده</td></tr>
+        <tr><td>singleTop</td><td>اگر در بالای Stack باشد، همان نمونه استفاده می‌شود</td><td>MainActivity ای که از چند نقطه باز می‌شود</td></tr>
+        <tr><td>singleTask</td><td>فقط یک نمونه در کل سیستم وجود دارد</td><td>SplashActivity که نباید تکرار شود</td></tr>
+        <tr><td>singleInstance</td><td>در یک Task کاملاً مجزا قرار می‌گیرد</td><td>موارد بسیار خاص</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۳ — تولید و بازبینی AndroidManifest.xml</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Generate a complete AndroidManifest.xml for a single-Activity Android WebView app named [PROJECT_NAME] with package [APPLICATION_ID]. Include:
+- SplashActivity as the launcher (MAIN/LAUNCHER intent-filter, exported=true).
+- MainActivity (exported=false, launchMode singleTop).
+- A FirebaseMessagingService (exported=false) with the MESSAGING_EVENT intent-filter.
+- Only these permissions: INTERNET, ACCESS_NETWORK_STATE, POST_NOTIFICATIONS.
+- usesCleartextTraffic=false.
+After generating it, review it for Android 12+ exported-attribute compliance and list any security concerns.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۶ ============ -->
+<section class="section" id="ch6">
+  <h2><span class="num">۶</span> Permissions: چه چیزی لازم است و چرا کمتر بهتر است</h2>
+  <p>مجوزها اولین چیزی هستند که بین کاربر و اپ شما اعتماد یا بی‌اعتمادی ایجاد می‌کنند. کاربری که می‌بیند یک اپ «فروشگاه اینترنتی» درخواست دسترسی به مخاطبین یا موقعیت مکانی می‌دهد، حتی اگر دلیل فنی موجهی هم پشتش باشد، احتمالاً نصب را لغو می‌کند.</p>
+
+  <h3>Dangerous در برابر Normal Permissions</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>سطح</th><th>مثال</th><th>نیاز به تأیید Runtime؟</th></tr></thead>
+      <tbody>
+        <tr><td>Normal</td><td>INTERNET، ACCESS_NETWORK_STATE</td><td>خیر — فقط اعلام در Manifest</td></tr>
+        <tr><td>Dangerous</td><td>CAMERA، ACCESS_FINE_LOCATION</td><td>بله — باید در کد درخواست شود</td></tr>
+        <tr><td>Special</td><td>POST_NOTIFICATIONS (اندروید ۱۳+)</td><td>بله، با رفتار اختصاصی</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۵ — درخواست Runtime Permission با Rationale</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Write complete Kotlin code (using ActivityResultContracts, not the deprecated onRequestPermissionsResult) for requesting the [PERMISSION_NAME] runtime permission from an Activity. Include:
+- A check using ContextCompat.checkSelfPermission before requesting.
+- A rationale dialog shown when shouldShowRequestPermissionRationale returns true, with this message: [RATIONALE_TEXT].
+- Graceful handling when the permission is denied (app continues working without the related feature).
+- A helper function that opens the app's system settings page when the permission was permanently denied.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۷ ============ -->
+<section class="section" id="ch7">
+  <h2><span class="num">۷</span> هسته WebView: تنظیمات، جاوااسکریپت، کوکی‌ها، ناوبری و دکمه Back</h2>
+  <p>این فصل قلب اپلیکیشن است: MainActivity که یک WebView را نمایش می‌دهد، بین بخش‌های سایت جابه‌جا می‌شود، نشست ورود کاربر را حفظ می‌کند، و رفتار دکمه Back و لینک‌های خارجی را مدیریت می‌کند.</p>
+
+  <h3>WebSettings — خط‌به‌خط</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">Kotlin</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+    <pre>webView.settings.apply {
+    javaScriptEnabled = true
+    domStorageEnabled = true
+    databaseEnabled = true
+    cacheMode = WebSettings.LOAD_DEFAULT
+    useWideViewPort = true
+    loadWithOverviewMode = true
+    setSupportZoom(false)
+    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+    userAgentString = userAgentString + " [PROJECT_NAME]AndroidApp/1.0"
+}
+webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)</pre>
+  </div>
+
+  <h3>نابودی صحیح WebView (جلوگیری از نشتی حافظه)</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">Kotlin</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+    <pre>override fun onDestroy() {
+    webView.apply {
+        stopLoading()
+        clearHistory()
+        removeAllViews()
+        (parent as? ViewGroup)?.removeView(this)
+        destroy()
+    }
+    super.onDestroy()
+}</pre>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۶ — پیاده‌سازی کامل MainActivity با WebView</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Write a complete Kotlin MainActivity for an Android app (ViewBinding, minSdk 24) with:
+- One WebView loading URLs from string resources (url_home=[HOME_URL], url_categories=[CATEGORIES_URL], url_cart=[CART_URL], url_account=[ACCOUNT_URL]).
+- A BottomNavigationView that switches the WebView URL on tab select without creating new Activities.
+- Persistent cookies via CookieManager (setAcceptCookie + flush) so login sessions survive app restarts.
+- Back-button handling via OnBackPressedCallback: webView.goBack() if canGoBack(), otherwise show an AlertDialog exit-confirmation only when on the Home tab.
+- An offline layout shown on WebViewClient.onReceivedError with a retry button that reloads the current URL.
+- shouldOverrideUrlLoading opens any URL NOT matching host [MAIN_DOMAIN] in the system browser.
+No third-party WebView libraries.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۷.۵ ============ -->
+<section class="section" id="ch7-5">
+  <h2><span class="num">۷.۵</span> ویژگی‌های پیشرفته WebView</h2>
+  <p>فصل قبل هسته WebView را ساخت؛ این فصل آن هسته را به یک تجربه کاربری کامل و حرفه‌ای ارتقا می‌دهد — از رفرش کششی و صفحه بارگذاری سفارشی گرفته تا پل ارتباطی جاوااسکریپت و دیباگ از راه دور.</p>
+
+  <h3>Pull-to-Refresh با SwipeRefreshLayout</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">Kotlin</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+    <pre>swipeRefresh.setOnRefreshListener {
+    webView.reload()
+}
+webView.webViewClient = object : WebViewClient() {
+    override fun onPageFinished(view: WebView, url: String) {
+        swipeRefresh.isRefreshing = false
+    }
+}</pre>
+  </div>
+
+  <h3>پل ارتباطی جاوااسکریپت امن</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">Kotlin</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+    <pre>class WebAppBridge(private val activity: MainActivity) {
+    @JavascriptInterface
+    fun shareText(text: String) {
+        activity.runOnUiThread { activity.shareViaSystemSheet(text) }
+    }
+    @JavascriptInterface
+    fun getAppVersion(): String = BuildConfig.VERSION_NAME
+}
+// اتصال:
+webView.addJavascriptInterface(WebAppBridge(this), "AndroidBridge")</pre>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۸ — پل ارتباطی جاوااسکریپت امن</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Implement a minimal, secure JavaScript Bridge for an Android Kotlin WebView app. Requirements:
+- Only expose these methods to JavaScript: shareText(text: String), getAppVersion(): String.
+- Each @JavascriptInterface method must switch to the UI thread before touching any UI.
+- The bridge object must only be attached to WebView instances loading pages under host [MAIN_DOMAIN].
+- Explain, in a short security note, why exposing more methods than necessary would be risky.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۸ ============ -->
+<section class="section" id="ch8">
+  <h2><span class="num">۸</span> Splash Screen و آیکون اپلیکیشن حرفه‌ای</h2>
+  <p>اسپلش اسکرین اولین چیزی است که کاربر می‌بیند؛ باید سریع (۱ تا ۲ ثانیه)، ساده، و هم‌راستا با هویت بصری برند باشد.</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>مدت زمان</th><th>تجربه کاربر</th><th>توصیه</th></tr></thead>
+      <tbody>
+        <tr><td>کمتر از ۱ ثانیه</td><td>تقریباً نامرئی</td><td>قابل قبول اگر بارگذاری سریع است</td></tr>
+        <tr><td>۱ تا ۲ ثانیه</td><td>زمان کافی برای دیدن برند</td><td>محدوده توصیه‌شده</td></tr>
+        <tr><td>بیش از ۲ ثانیه</td><td>احساس کندی</td><td>اجتناب شود</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار</div>
+    <p>هرگز یک تأخیر مصنوعی (مثل Thread.sleep) برای «نمایش بیشتر لوگو» اضافه نکنید؛ این کار مستقیماً زمان راه‌اندازی اپ را بدون هیچ فایده واقعی افزایش می‌دهد و روی متریک‌های Cold Start مارکت هم اثر منفی دارد.</p>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۱۸ — تولید Splash Screen و Adaptive Icon</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Write a minimal Kotlin SplashActivity for an Android app that:
+- Shows a full-screen background of color [PRIMARY_COLOR] with the [LOGO_FILE] logo centered.
+- Plays a single simple fade-in + scale animation lasting no more than 1.2 seconds total.
+- Navigates to MainActivity and calls finish() immediately after the animation completes, with no artificial delay.
+Also describe how to structure an Adaptive Icon (foreground + background layers) for Android 8+ using this same logo and color, via Android Studio's Image Asset tool.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۹ ============ -->
+<section class="section" id="ch9">
+  <h2><span class="num">۹</span> مدیریت حالت آفلاین و ConnectivityManager</h2>
+  <p>قطع اینترنت یک استثنا نیست؛ بخشی طبیعی از زندگی یک اپ موبایل است. تفاوت یک اپ آماتور و یک اپ حرفه‌ای دقیقاً همین‌جا مشخص می‌شود: اپ آماتور یک صفحه سفید یا پیام فنی گنگ نشان می‌دهد؛ اپ حرفه‌ای با یک پیام آرام و برند‌دار به کاربر می‌گوید چه اتفاقی افتاده و چطور ادامه دهد.</p>
+
+  <h3>نمونه کد: پایش پیشگیرانه اتصال با NetworkCallback</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">Kotlin</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+    <pre>private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    override fun onAvailable(network: Network) {
+        runOnUiThread {
+            if (isShowingOfflineScreen) {
+                webView.loadUrl(lastAttemptedUrl)
+            }
+        }
+    }
+}
+
+private fun registerNetworkMonitor() {
+    val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    cm.registerDefaultNetworkCallback(networkCallback)
+}
+
+override fun onDestroy() {
+    val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    cm.unregisterNetworkCallback(networkCallback)
+    super.onDestroy()
+}</pre>
+  </div>
+
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار</div>
+    <p>فراموش‌کردن unregisterNetworkCallback در onDestroy می‌تواند منجر به نشتی حافظه یا کرش شود.</p>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۰ ============ -->
+<section class="section" id="ch10">
+  <h2><span class="num">۱۰</span> Firebase و Firebase Cloud Messaging (FCM) از صفر</h2>
+  <p>Firebase پلتفرم رایگان گوگل برای زیرساخت اپلیکیشن است. برای این نوع پروژه، تنها بخش موردنیاز، Firebase Cloud Messaging (FCM) برای دریافت نوتیفیکیشن پوش است.</p>
+
+  <h3>مراحل گام‌به‌گام (روش قابل بازتولید)</h3>
+  <ol>
+    <li>به console.firebase.google.com بروید و با حساب گوگل وارد شوید.</li>
+    <li>روی Add Project کلیک کرده و نام پروژه را انتخاب کنید.</li>
+    <li>در Project Settings روی «Add app → Android» کلیک کنید.</li>
+    <li>Package name را دقیقاً برابر [APPLICATION_ID] در app/build.gradle وارد کنید.</li>
+    <li>فایل google-services.json را دانلود و در مسیر app/ پروژه جایگزین کنید.</li>
+    <li>پلاگین google-services و وابستگی firebase-messaging-ktx را فعال کنید.</li>
+  </ol>
+
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار</div>
+    <p>بدون google-services.json واقعی، اپ حتی اگر کامپایل شود، هیچ توکن FCM معتبری دریافت نمی‌کند و هیچ نوتیفیکیشنی هم نمی‌رسد — این رایج‌ترین علت «نوتیفیکیشن کار نمی‌کند» است.</p>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۱۹ — پیاده‌سازی سرویس دریافت نوتیفیکیشن Firebase</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Write a Kotlin FirebaseMessagingService subclass for an Android app (package [APPLICATION_ID]) that:
+- Reads remoteMessage.data["title"], ["message"], ["image"], ["url"] (data-only payload, NOT notification payload).
+- Builds and shows a NotificationCompat notification with a big-picture style if an image URL is present.
+- Creates a NotificationChannel for Android 8+ before posting.
+- On tap, opens SplashActivity with an extra EXTRA_NOTIFICATION_URL so MainActivity loads that URL directly inside the existing WebView instead of the default home page.
+- Implements onNewToken() and logs the token for manual testing via Firebase Console "Send test message".
+Target minSdk 24.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۱ ============ -->
+<section class="section" id="ch11">
+  <h2><span class="num">۱۱</span> Git و GitHub از صفر</h2>
+  <p>خیلی از توسعه‌دهندگان تازه‌کار، Git را فقط «جایی برای آپلود کد» می‌بینند؛ در حالی‌که واقعیت چیز دیگری است: Git تنها بیمه شما در برابر یک اشتباه بزرگ است.</p>
+
+  <div class="callout best">
+    <div class="callout-title">✅ بهترین شیوه</div>
+    <p>Commit های کوچک و مکرر با پیام‌های واضح بدهید؛ Commit های غول‌پیکر و نامشخص، بازگشت به نسخه سالم را عملاً بی‌فایده می‌کنند.</p>
+  </div>
+
+  <div class="callout danger">
+    <div class="callout-title">⚠️ هشدار</div>
+    <p>هرگز کلید یا فایل امضا را در مخزن قرار ندهید؛ از GitHub Secrets استفاده کنید. .gitignore را همان روز اول، قبل از اولین Commit، اضافه کنید.</p>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۲ ============ -->
+<section class="section" id="ch12">
+  <h2><span class="num">۱۲</span> GitHub Actions، CI/CD و Secrets</h2>
+  <p>بدون بیلد خودکار، هر بار که می‌خواهید مطمئن شوید پروژه هنوز درست کامپایل می‌شود، باید آن را روی سیستم شخصی خودتان بیلد کنید. GitHub Actions این کار را روی یک سرور تمیز و یکسان انجام می‌دهد.</p>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۲۱ — نوشتن Workflow بیلد خودکار Debug</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Write a GitHub Actions workflow (.github/workflows/build-apk.yml) for an Android Gradle project that:
+- Triggers on workflow_dispatch and on push to branch [MAIN_BRANCH].
+- Runs on ubuntu-latest.
+- Sets up Temurin JDK 17.
+- Generates the Gradle wrapper (gradle wrapper --gradle-version 8.7) since gradle-wrapper.jar is not committed.
+- Grants execute permission to gradlew.
+- Runs ./gradlew assembleDebug.
+- Uploads the resulting APK from app/build/outputs/apk/debug/*.apk as artifact "app-debug-apk".</pre>
+    </div>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۲۲ — بیلد Release امضاشده با Secrets</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Extend my existing GitHub Actions workflow to also build a signed release AAB:
+- Decode a base64 keystore from secret KEYSTORE_BASE64 into a file.
+- Use secrets KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD to sign via the Gradle signingConfig.
+- Run ./gradlew bundleRelease.
+- Upload app/build/outputs/bundle/release/*.aab as artifact "app-release-aab".
+Never print any secret value in the workflow logs.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۳ ============ -->
+<section class="section" id="ch13">
+  <h2><span class="num">۱۳</span> Keystore، بیلد Release و تفاوت APK با AAB</h2>
+  <p>این فصل درباره یک تصمیم برگشت‌ناپذیر است. برخلاف اکثر تنظیمات این کتاب که در هر مرحله قابل تغییرند، از دست‌دادن فایل Keystore یا رمز آن، یعنی از دست‌دادن هویت دائمی اپلیکیشن شما.</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>ویژگی</th><th>APK</th><th>AAB</th></tr></thead>
+      <tbody>
+        <tr><td>نصب مستقیم روی دستگاه</td><td>بله</td><td>خیر</td></tr>
+        <tr><td>حجم دانلود نهایی</td><td>ثابت برای همه</td><td>کوچک‌تر</td></tr>
+        <tr><td>پذیرش در گوگل‌پلی</td><td>خیر</td><td>بله — الزامی</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout best">
+    <div class="callout-title">✅ بهترین شیوه</div>
+    <p>از Google Play App Signing استفاده کنید: در این حالت گوگل خودش یک کلید نهایی امضای انتشار را نگه می‌دارد و حتی اگر Keystore آپلودی شما را گم کنید، مسیر بازیابی رسمی وجود دارد.</p>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۲۳ — پیکربندی کامل signingConfig</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Configure app/build.gradle for an Android project so that release builds are signed using a keystore whose path, store password, key alias, and key password are read from environment variables (KEYSTORE_PATH, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD) rather than hardcoded values, falling back gracefully with a clear error message if any variable is missing. Also enable minifyEnabled and shrinkResources for the release build type.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۴ ============ -->
+<section class="section" id="ch14">
+  <h2><span class="num">۱۴</span> تست پیش از انتشار</h2>
+  <p>شبیه‌ساز Android Studio یک محیط تمیز و ایده‌آل است — بدون بهینه‌سازی باتری تهاجمی برندهای واقعی، بدون آنتن‌دهی ضعیف. بسیاری از باگ‌های واقعی فقط روی دستگاه فیزیکی واقعی خودشان را نشان می‌دهند.</p>
+
+  <div class="callout case">
+    <div class="callout-title">📌 مطالعه موردی</div>
+    <p>یک تیم توسعه، اپ خود را کاملاً روی شبیه‌ساز و یک گوشی Pixel تست کرده و همه‌چیز بی‌نقص بود. بعد از انتشار، کاربران گوشی‌های شیائومی گزارش دادند نوتیفیکیشن‌ها بعد از چند ساعت عدم استفاده از اپ، دیگر نمی‌رسند. علت، سیستم مدیریت باتری اختصاصی MIUI بود.</p>
+  </div>
+
+  <h3>موارد ضروری تست</h3>
+  <ul>
+    <li>نصب و اجرای اول اپ (Splash → Home) بدون کرش.</li>
+    <li>جابه‌جایی بین همه تب‌های ناوبری پایین.</li>
+    <li>حفظ نشست ورود بعد از بستن کامل و بازکردن مجدد اپ.</li>
+    <li>رفتار دکمه Back در صفحه اصلی و صفحات داخلی.</li>
+    <li>نمایش صحیح صفحه آفلاین و عملکرد دکمه تلاش مجدد.</li>
+    <li>دریافت و تپ روی نوتیفیکیشن تستی از Firebase Console.</li>
+    <li>باز شدن لینک‌های خارجی در مرورگر سیستم.</li>
+    <li>حجم نهایی و زمان بارگذاری اولیه اپ.</li>
+  </ul>
+</section>
+
+<!-- ============ فصل ۱۵ ============ -->
+<section class="section" id="ch15">
+  <h2><span class="num">۱۵</span> انتشار در بازار اندروید</h2>
+  <p>انتشار در مارکت آخرین دروازه‌ای است که بین کار فنی شما و کاربر واقعی قرار دارد؛ یک توضیحات ضعیف، اسکرین‌شات نامناسب، یا سیاست حریم خصوصی گمشده می‌تواند حتی بهترین اپ فنی را رد کند.</p>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۲۵ — تکمیل فرم Data Safety</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Based on this list of data my Android WebView app and its website actually collect: [LIST DATA TYPES, e.g. "email for account creation", "order history via WooCommerce"], draft accurate answers for a Play Store Data Safety form covering: data types collected, whether data is shared with third parties, and whether data is encrypted in transit. Do not overstate or understate collection — only what's listed.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۶ ============ -->
+<section class="section" id="ch16">
+  <h2><span class="num">۱۶</span> PWA و TWA: کِی به‌عنوان جایگزین یا مکمل استفاده شوند</h2>
+  <p>این کتاب یک مسیر مشخص (WebView سفارشی) را آموزش می‌دهد، اما یک مشاور یا توسعه‌دهنده حرفه‌ای باید بتواند به مشتری بگوید «این مسیر برای شما مناسب نیست، این یکی بهتر است».</p>
+
+  <div class="callout best">
+    <div class="callout-title">✅ روش قابل بازتولید</div>
+    <p>قاعده تصمیم‌گیری: اگر نیاز به حداقل یکی از این موارد دارید — ناوبری بومی اختصاصی، صفحه آفلاین سفارشی، دیالوگ خروج، یا نوتیفیکیشن کاملاً کنترل‌شده — مسیر WebView سفارشی را دنبال کنید؛ در غیر این صورت TWA یا PWA می‌تواند کافی باشد.</p>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>مسیر</th><th>زمان تقریبی توسعه</th><th>هزینه نگهداری بلندمدت</th></tr></thead>
+      <tbody>
+        <tr><td>PWA</td><td>کوتاه (چند روز)</td><td>کم — فقط نگهداری سایت</td></tr>
+        <tr><td>TWA</td><td>کوتاه تا متوسط</td><td>کم تا متوسط</td></tr>
+        <tr><td>WebView سفارشی</td><td>متوسط تا بلند</td><td>متوسط — نیاز به کد بومی</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۷ ============ -->
+<section class="section" id="ch17">
+  <h2><span class="num">۱۷</span> روش‌شناسی کامل توسعه با هوش مصنوعی</h2>
+  <p>این فصل نحوه کار مؤثر با مدل‌های هوش مصنوعی را به‌عنوان یک همکار توسعه واقعی آموزش می‌دهد — نه فقط «چه پرامپتی بنویسیم» بلکه «چطور یک مکالمه توسعه را مدیریت کنیم».</p>
+
+  <h3>چرخه تکرارشونده توسعه با AI</h3>
+  <p><strong>1) Context ← 2) Requirements ← 3) Plan ← 4) Generate ← 5) Review ← 6) Implement ← 7) Test ← 8) Debug ← 9) Fix ← 10) Regression Test ← 11) Refactor ← 12) Security Review ← 13) Performance Review ← 14) Final Audit</strong></p>
+
+  <h3>چگونه کانتکست بدهیم</h3>
+  <ul>
+    <li>همیشه فایل کامل مرتبط را بدهید، نه یک تکه پراکنده.</li>
+    <li>نسخه‌های دقیق (Kotlin، AGP، Gradle، minSdk) را ذکر کنید.</li>
+    <li>محدودیت‌های صریح پروژه (مثلاً «بدون کتابخانه اضافه») را هر بار تکرار کنید.</li>
+  </ul>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۲۷ — اجرای کامل چرخه AI برای یک باگ ناپایدار</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>I have an intermittent bug: [DESCRIBE INCONSISTENT BEHAVIOR — e.g. "user session is lost sometimes but not always after closing the app"]. Here are the relevant files: [PASTE FULL RELEVANT FILES]
+Instead of giving me one definitive answer, list 3-4 plausible hypotheses ranked by likelihood, and for each one tell me exactly what to check or log to confirm or rule it out.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۸ ============ -->
+<section class="section" id="ch18">
+  <h2><span class="num">۱۸</span> کتابخانه کامل پرامپت‌ها</h2>
+  <p>این فصل عمداً جدا از فصل‌های آموزشی نگه داشته شده تا در روز واقعی کار — وقتی یک خطای کامپایل، یک مشکل امنیتی، یا نیاز فوری به بهینه‌سازی دارید — بتوانید مستقیم سراغ پرامپت مربوطه بروید.</p>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۲۸ — تولید و بازبینی build.gradle</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Generate app/build.gradle (Kotlin DSL or Groovy) for an Android app with: namespace/applicationId [APPLICATION_ID], minSdk 24, targetSdk and compileSdk set to the latest stable API, Firebase BoM + firebase-messaging-ktx, viewBinding enabled, minifyEnabled and shrinkResources true for the release build type. Also generate the root build.gradle with the Google Services plugin declared. List the exact Kotlin, AGP, and Gradle wrapper versions that are compatible together as of today.</pre>
+    </div>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۳۳ — بازبینی کامل کد (Code Review)</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Act as a senior Android code reviewer. Review the following file(s) for: code quality, potential null-pointer issues, lifecycle correctness, memory leaks (especially WebView + Activity references), and adherence to Kotlin best practices. Give findings as a prioritized list (Critical / Major / Minor). [PASTE FILE(S)]</pre>
+    </div>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۳۴ — بازبینی امنیتی (Security Review)</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Act as an Android application security reviewer. Review this AndroidManifest.xml and WebView configuration for: exported component misconfiguration, cleartext traffic risk, WebView JavaScript-to-native bridge risks, insecure file access, and any overly broad permissions. Manifest: [PASTE MANIFEST] WebView setup: [PASTE WEBVIEW CODE] Return a table: Risk | Severity | Recommendation.</pre>
+    </div>
+  </div>
+
+  <div class="prompt-box">
+    <div class="prompt-title">پرامپت ۳۸ — تولید محتوای صفحه انتشار در مارکت</div>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+      <pre>Write a store listing for [TARGET_MARKET] for an app named [APP_NAME]. Base description: [APPLICATION_DESCRIPTION]. Key features: [LIST_KEY_FEATURES]. Provide: a short description (max 80 characters), a full description (persuasive but factual, no unsupported claims), and 5 suggested screenshot captions.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ فصل ۱۹ ============ -->
+<section class="section" id="ch19">
+  <h2><span class="num">۱۹</span> راهنمای جامع رفع اشکال</h2>
+  <p>این فصل ۲۰ مشکل رایج پروژه‌های WebView را با ساختار ثابت (علائم، علل، تشخیص، راه‌حل، پیشگیری، پرامپت دیباگ) پوشش می‌دهد.</p>
+
+  <div class="trouble-card">
+    <div class="trouble-header">⚠️ شکست Gradle Sync</div>
+    <div class="trouble-body">
+      <div class="trouble-item"><div class="label">علائم</div><p>Android Studio پیام «Sync Failed» نشان می‌دهد.</p></div>
+      <div class="trouble-item"><div class="label">علل احتمالی</div><p>ناسازگاری نسخه AGP/Kotlin/Gradle · google-services.json نامعتبر</p></div>
+      <div class="trouble-item"><div class="label">راه‌حل</div><p>نسخه‌ها را هماهنگ کنید یا google-services.json را با applicationId درست دوباره دانلود کنید.</p></div>
+      <div class="trouble-item"><div class="label">پرامپت دیباگ</div>
+        <div class="code-block" style="margin-top:6px">
+          <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+          <pre>[PASTE FULL SYNC ERROR + gradle files]. What version mismatch is causing this and what's the exact fix?</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trouble-card">
+    <div class="trouble-header">⚠️ صفحه سفید در WebView</div>
+    <div class="trouble-body">
+      <div class="trouble-item"><div class="label">علائم</div><p>اپ اجرا می‌شود اما صفحه کاملاً سفید است.</p></div>
+      <div class="trouble-item"><div class="label">علل احتمالی</div><p>javaScriptEnabled=false · خطای شبکه بی‌صدا · URL اشتباه</p></div>
+      <div class="trouble-item"><div class="label">راه‌حل</div><p>javaScriptEnabled را فعال و onReceivedError را برای دیدن خطای واقعی پیاده‌سازی کنید.</p></div>
+      <div class="trouble-item"><div class="label">پرامپت دیباگ</div>
+        <div class="code-block" style="margin-top:6px">
+          <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+          <pre>[PASTE WEBVIEW SETUP CODE]. Why would this show a blank page and how do I fix it?</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trouble-card">
+    <div class="trouble-header">⚠️ نوتیفیکیشن دریافت نمی‌شود</div>
+    <div class="trouble-body">
+      <div class="trouble-item"><div class="label">علل احتمالی</div><p>Notification Payload به‌جای Data Payload · NotificationChannel ساخته نشده · POST_NOTIFICATIONS گرفته نشده · محدودیت OEM</p></div>
+      <div class="trouble-item"><div class="label">راه‌حل</div><p>به Data Payload سوییچ کنید، NotificationChannel بسازید، مجوز Runtime را درخواست کنید.</p></div>
+      <div class="trouble-item"><div class="label">پرامپت دیباگ</div>
+        <div class="code-block" style="margin-top:6px">
+          <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+          <pre>[PASTE SERVICE FILE + MANIFEST]. Walk through every reason this notification might not show, in priority order.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trouble-card">
+    <div class="trouble-header">⚠️ حجم زیاد APK</div>
+    <div class="trouble-body">
+      <div class="trouble-item"><div class="label">علل احتمالی</div><p>minifyEnabled/shrinkResources غیرفعال · کتابخانه‌های بلااستفاده</p></div>
+      <div class="trouble-item"><div class="label">راه‌حل</div><p>minifyEnabled و shrinkResources را فعال و وابستگی‌های استفاده‌نشده را حذف کنید.</p></div>
+      <div class="trouble-item"><div class="label">پرامپت دیباگ</div>
+        <div class="code-block" style="margin-top:6px">
+          <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+          <pre>[PASTE Analyze APK output / dependencies list]. What's contributing most to size and how do I reduce it?</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trouble-card">
+    <div class="trouble-header">⚠️ رد شدن در بررسی مارکت</div>
+    <div class="trouble-body">
+      <div class="trouble-item"><div class="label">علل احتمالی</div><p>مجوزهای غیرضروری · توضیحات گمراه‌کننده · فقدان سیاست حریم خصوصی</p></div>
+      <div class="trouble-item"><div class="label">راه‌حل</div><p>مطابق پیام دقیق مارکت، مجوز/توضیحات/سیاست حریم خصوصی را اصلاح و مجدداً ارسال کنید.</p></div>
+      <div class="trouble-item"><div class="label">پرامپت دیباگ</div>
+        <div class="code-block" style="margin-top:6px">
+          <div class="code-header"><span class="lang">Prompt</span><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+          <pre>[PASTE REJECTION MESSAGE]. What exactly caused this and what should I change before resubmitting?</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ عمومی ============ -->
+<section class="section">
+  <h2><span class="num">❓</span> سوالات متداول</h2>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">اگر Placeholder ای را فراموش کنم جایگزین کنم چه اتفاقی می‌افتد؟</div>
+    <div class="faq-a">کد یا سند تولیدشده یک مقدار نمادین بی‌معنی خواهد داشت که به‌محض اجرا یا بررسی، بلافاصله قابل‌تشخیص است. همیشه بعد از دریافت هر خروجی از AI، یک بار سریع دنبال کروشه‌های باقی‌مانده بگردید.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">آیا لازم است فصل‌ها را دقیقاً به همان ترتیب کتاب بخوانم؟</div>
+    <div class="faq-a">برای اولین‌بار بله، چون هر فصل روی مفاهیم فصل قبل بنا می‌شود؛ برای مراجعه بعدی، می‌توانید مستقیم سراغ فصل موردنیاز بروید.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">آیا GitHub Actions برای مخازن خصوصی هم رایگان است؟</div>
+    <div class="faq-a">بله، تا یک سهمیه ماهانه مشخص (که برای این نوع پروژه ساده معمولاً کافی است) رایگان است؛ فراتر از آن هزینه‌بر می‌شود.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">اگر Keystore را گم کنم ولی از Google Play App Signing استفاده کرده باشم، چه اتفاقی می‌افتد؟</div>
+    <div class="faq-a">گوگل یک مسیر رسمی بازیابی از طریق پشتیبانی Play Console دارد، چون خودش کلید نهایی امضای انتشار را نگه می‌دارد؛ این دقیقاً همان مزیتی است که این سرویس را ارزشمند می‌کند.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">چند دستگاه فیزیکی واقعاً برای تست کافی است؟</div>
+    <div class="faq-a">حداقل دو برند متفاوت (یکی با محدودیت‌های سخت‌گیر مثل شیائومی/هوآوی) پوشش خوبی برای اکثر مشکلات رایج OEM می‌دهد؛ ایده‌آل بیشتر، اما این حداقل عملی است.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">آیا می‌توان همزمان هم PWA و هم اپ WebView سفارشی داشت؟</div>
+    <div class="faq-a">بله، کاملاً؛ این دو رقیب هم نیستند — PWA برای کاربران دسکتاپ/بدون‌نصب و اپ WebView برای حضور کامل در مارکت با قابلیت‌های بومی، می‌توانند مکمل هم باشند.</div>
+  </div>
+</section>
+
+<!-- ============ CHANGELOG ============ -->
+<section class="section">
+  <h2><span class="num">📋</span> تاریخچه نسخه</h2>
+  <h3>Version 1.0.0 — Initial Commercial Edition</h3>
+  <ul>
+    <li>Complete Android WebView Workflow (فصل‌های ۱ تا ۱۶)</li>
+    <li>AI Development Methodology (فصل ۱۷)</li>
+    <li>Prompt Library — ۴۰ پرامپت کامل (فصل ۱۸)</li>
+    <li>Troubleshooting Guide — ۲۰ مشکل رایج (فصل ۱۹)</li>
+    <li>Checklists — یکپارچه در پیوست‌های F و G</li>
+    <li>Firebase and Push Notification (فصل ۱۰)</li>
+    <li>GitHub and CI/CD (فصل‌های ۱۱ و ۱۲)</li>
+    <li>Release and Publishing (فصل‌های ۱۳ تا ۱۵)</li>
+    <li>Glossary, Index و Prompt Cheat Sheet (پیوست‌های C تا E)</li>
+  </ul>
+</section>
+
+</main>
+
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="بازگشت به بالا">↑</button>
+
+<footer class="book-footer">
+  <p>© تمام حقوق این اثر برای <strong>Promptexa.ir</strong> محفوظ است.</p>
+  <p>نویسنده: <strong>وحید خلج</strong> · نسخه ۱.۰.۰</p>
+  <p>برای اطلاعات بیشتر: <strong>Info.promptexa.ir</strong></p>
+</footer>
+
+<script>
+/* ==================== MENU TOGGLE ==================== */
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('overlay');
+
+menuToggle.addEventListener('click', () => {
+  menuToggle.classList.toggle('open');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+  document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+});
+
+overlay.addEventListener('click', closeSidebar);
+
+function closeSidebar() {
+  menuToggle.classList.remove('open');
+  sidebar.classList.remove('open');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ==================== CLOSE SIDEBAR ON LINK CLICK ==================== */
+document.querySelectorAll('.sidebar-nav a').forEach(link => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 768) closeSidebar();
+  });
+});
+
+/* ==================== SEARCH IN TOC ==================== */
+const searchInput = document.getElementById('searchInput');
+const noResults = document.getElementById('noResults');
+const navLinks = document.querySelectorAll('.sidebar-nav a');
+
+searchInput.addEventListener('input', (e) => {
+  const query = e.target.value.trim().toLowerCase();
+  let visibleCount = 0;
+  navLinks.forEach(link => {
+    const text = link.textContent.toLowerCase();
+    if (text.includes(query)) {
+      link.style.display = 'block';
+      visibleCount++;
+    } else {
+      link.style.display = 'none';
+    }
+  });
+  noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+});
+
+/* ==================== COPY CODE ==================== */
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.textContent;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ کپی شد';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'کپی';
+        btn.classList.remove('copied');
+      }, 1800);
+    }).catch(() => fallbackCopy(text, btn));
+  } else {
+    fallbackCopy(text, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = '✓ کپی شد';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'کپی';
+      btn.classList.remove('copied');
+    }, 1800);
+  } catch (err) {
+    btn.textContent = 'خطا';
+    setTimeout(() => { btn.textContent = 'کپی'; }, 1800);
+  }
+  document.body.removeChild(textarea);
+}
+
+/* ==================== FAQ TOGGLE ==================== */
+function toggleFaq(el) {
+  el.parentElement.classList.toggle('open');
+}
+
+/* ==================== CHECKLIST TOGGLE ==================== */
+function toggleCheck(el) {
+  el.classList.toggle('checked');
+}
+
+/* ==================== PROGRESS BAR ==================== */
+const progressBar = document.getElementById('progressBar');
+const backTop = document.getElementById('backTop');
+
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+  progressBar.style.width = progress + '%';
+  backTop.classList.toggle('show', scrollTop > 400);
+}, { passive: true });
+
+/* ==================== ACTIVE TOC LINK (SCROLL SPY) ==================== */
+const sections = document.querySelectorAll('.section[id]');
+const tocLinks = document.querySelectorAll('.sidebar-nav a[href^="#"]');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      tocLinks.forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, {
+  rootMargin: '-20% 0px -70% 0px',
+  threshold: 0
+});
+
+sections.forEach(section => observer.observe(section));
+
+/* ==================== SMOOTH SCROLL FOR ANCHOR LINKS ==================== */
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      const offset = 20;
+      const top = target.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  });
+});
+
+/* ==================== KEYBOARD SHORTCUTS ==================== */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && sidebar.classList.contains('open')) closeSidebar();
+});
+
+/* ===== PROTECTION + COPYRIGHT ===== */
+(function(){
+  var C='\u00A9 \u06F2\u06F0\u06F2\u06F6 \u0648\u062D\u06CC\u062F \u062E\u0644\u062C \u00B7 Promptexa.ir \u00B7 \u062A\u0645\u0627\u0645\u06CC \u062D\u0642\u0648\u0642 \u0645\u062D\u0641\u0648\u0638 \u0627\u0633\u062A';
+  var bar=document.createElement('div');bar.className='legal-bar';bar.textContent=C;document.body.appendChild(bar);
+  document.querySelectorAll('.section').forEach(function(s){var d=document.createElement('div');d.className='sec-copy';d.textContent=C;s.appendChild(d);});
+  document.querySelectorAll('.code-block').forEach(function(cb){
+    if(!cb.closest('.prompt-box')){var b=cb.querySelector('.copy-btn');if(b)b.remove();}
+  });
+  function inPrompt(n){n=n&&n.nodeType===3?n.parentNode:n;return !!(n&&n.closest&&n.closest('.prompt-box pre'));}
+  function ok(e){var t=e.target;return inPrompt(t)||(t&&t.tagName==='INPUT');}
+  document.addEventListener('contextmenu',function(e){e.preventDefault();});
+  document.addEventListener('dragstart',function(e){e.preventDefault();});
+  document.addEventListener('selectstart',function(e){if(!ok(e))e.preventDefault();});
+  ['copy','cut'].forEach(function(ev){document.addEventListener(ev,function(e){
+    var s=window.getSelection();
+    if(!(s&&inPrompt(s.anchorNode)&&inPrompt(s.focusNode))&&!(e.target&&e.target.tagName==='INPUT'))e.preventDefault();
+  });});
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&'cxsupa'.indexOf(e.key.toLowerCase())>-1&&!ok(e))e.preventDefault();
+  });
+})();
+</script>
+</body>
+</html>
