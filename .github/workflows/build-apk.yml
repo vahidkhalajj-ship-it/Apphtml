@@ -1,0 +1,44 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - name: Debug APK
+        run: gradle assembleDebug --console=plain --warning-mode=none 2>&1 | tee build.log; test ${PIPESTATUS[0]} -eq 0
+      - name: Show the real error
+        if: failure()
+        run: |
+          echo "=============== ERROR SUMMARY ==============="
+          grep -n -E "What went wrong|Execution failed|error:|Error:|AAPT|Caused by|not found|does not exist" build.log | head -40
+          echo "=============== CONTEXT ==============="
+          grep -n -A12 "What went wrong" build.log | head -60
+      - name: Decode keystore
+        if: env.KEYSTORE_B64 != ''
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+      - name: Signed release APK + AAB
+        if: env.KEYSTORE_B64 != ''
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle assembleRelease bundleRelease
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apk
+          path: |
+            app/build/outputs/apk/**/*.apk
+            app/build/outputs/bundle/**/*.aab
+            build.log
